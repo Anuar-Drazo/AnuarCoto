@@ -1,6 +1,8 @@
 from dataclasses import dataclass
 import random
 
+DURACION_COMPETENCIA_SEGUNDOS = 60
+
 
 OPERACIONES = [
     "Suma de 2 dígitos",
@@ -12,7 +14,6 @@ OPERACIONES = [
 
 @dataclass(frozen=True)
 class Ejercicio:
-
     numero_a: int
     numero_b: int
     simbolo: str
@@ -66,11 +67,6 @@ _INSTRUCCIONES = {
 
 
 def generar_ejercicio(operacion):
-    """Genera un ejercicio válido para la operación seleccionada.
-
-    Raises:
-        ValueError: si la operación no está entre las cuatro disponibles.
-    """
     generador = _GENERADORES.get(operacion)
     if generador is None:
         raise ValueError(f"Operación no reconocida: {operacion}")
@@ -78,7 +74,6 @@ def generar_ejercicio(operacion):
 
 
 def obtener_instruccion(operacion):
-    """Devuelve la instrucción que debe mostrarse para una operación."""
     try:
         return _INSTRUCCIONES[operacion]
     except KeyError:
@@ -86,5 +81,4 @@ def obtener_instruccion(operacion):
 
 
 def comprobar_respuesta(respuesta_usuario, ejercicio):
-    """Indica si la respuesta entera del usuario es correcta."""
     return respuesta_usuario == ejercicio.respuesta_correcta

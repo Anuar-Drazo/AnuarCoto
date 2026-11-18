@@ -6,6 +6,9 @@ from datetime import datetime
 
 DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "anuarcoto.db")
 ITERACIONES = 100_000
+MAX_INTENTOS_COMPETENCIA = 3
+# Activar al terminar las pruebas para limitar a 3 competencias por día.
+LIMITE_INTENTOS_COMPETENCIA_ACTIVO = False
 
 
 def conectar():
@@ -37,11 +40,16 @@ def inicializar():
                 modo TEXT NOT NULL,
                 puntaje INTEGER NOT NULL,
                 fecha TEXT NOT NULL,
+                tiempo_segundos REAL,
                 FOREIGN KEY (usuario_id) REFERENCES usuarios(id)
             )
             """
         )
-
+        columnas = {
+            fila["name"] for fila in con.execute("PRAGMA table_info(partidas)")
+        }
+        if "tiempo_segundos" not in columnas:
+            con.execute("ALTER TABLE partidas ADD COLUMN tiempo_segundos REAL")
 
 
 def crear_hash(password, salt=None):
@@ -54,7 +62,6 @@ def crear_hash(password, salt=None):
 def verificar(password, hash_guardado, salt_guardado):
     nuevo_hash, _ = crear_hash(password, bytes.fromhex(salt_guardado))
     return hmac.compare_digest(nuevo_hash, hash_guardado)
-
 
 
 def registrar_usuario(nombre, password):
@@ -88,14 +95,47 @@ def validar_login(nombre, password):
     return None
 
 
-
-def guardar_partida(usuario_id, operacion, modo, puntaje):
+def guardar_partida(usuario_id, operacion, modo, puntaje, tiempo_segundos=None):
     with conectar() as con:
         con.execute(
-            "INSERT INTO partidas (usuario_id, operacion, modo, puntaje, fecha) "
-            "VALUES (?, ?, ?, ?, ?)",
-            (usuario_id, operacion, modo, puntaje, datetime.now().isoformat(timespec="seconds")),
+            "INSERT INTO partidas "
+            "(usuario_id, operacion, modo, puntaje, fecha, tiempo_segundos) "
+            "VALUES (?, ?, ?, ?, ?, ?)",
+            (
+                usuario_id,
+                operacion,
+                modo,
+                puntaje,
+                datetime.now().isoformat(timespec="seconds"),
+                tiempo_segundos,
+            ),
         )
+
+
+def iniciar_intento_competencia(usuario_id, operacion):
+    with conectar() as con:
+        cursor = con.execute(
+            "INSERT INTO partidas "
+            "(usuario_id, operacion, modo, puntaje, fecha, tiempo_segundos) "
+            "VALUES (?, ?, 'Competencia', 0, ?, NULL)",
+            (
+                usuario_id,
+                operacion,
+                datetime.now().isoformat(timespec="seconds"),
+            ),
+        )
+        return cursor.lastrowid
+
+
+def finalizar_intento_competencia(partida_id, puntaje, tiempo_segundos):
+    with conectar() as con:
+        cursor = con.execute(
+            "UPDATE partidas SET puntaje = ?, tiempo_segundos = ? "
+            "WHERE id = ? AND modo = 'Competencia' AND tiempo_segundos IS NULL",
+            (puntaje, tiempo_segundos, partida_id),
+        )
+        if cursor.rowcount != 1:
+            raise sqlite3.DatabaseError("No se encontró el intento competitivo activo.")
 
 
 def partidas_competencia_hoy(usuario_id):
@@ -107,3 +147,61 @@ def partidas_competencia_hoy(usuario_id):
             (usuario_id, hoy + "%"),
         ).fetchone()
     return fila["total"]
+
+
+def puede_iniciar_competencia(usuario_id):
+    if not LIMITE_INTENTOS_COMPETENCIA_ACTIVO:
+        return True
+    return partidas_competencia_hoy(usuario_id) < MAX_INTENTOS_COMPETENCIA
+
+
+def obtener_ranking_competencia(operacion, limite=10):
+    with conectar() as con:
+        filas = con.execute(
+            "SELECT u.id AS usuario_id, u.nombre, p.puntaje, "
+            "p.tiempo_segundos, p.fecha "
+            "FROM partidas p JOIN usuarios u ON u.id = p.usuario_id "
+            "WHERE p.modo = 'Competencia' AND p.operacion = ? "
+            "AND p.tiempo_segundos IS NOT NULL",
+            (operacion,),
+        ).fetchall()
+
+    resultados_por_usuario = {}
+    for fila in filas:
+        resultados_por_usuario.setdefault(fila["usuario_id"], {
+            "usuario_id": fila["usuario_id"],
+            "nombre": fila["nombre"],
+            "intentos": [],
+        })["intentos"].append(fila)
+
+    ranking = []
+    for usuario in resultados_por_usuario.values():
+        mejores = sorted(
+            usuario["intentos"],
+            key=lambda intento: (
+                -intento["puntaje"],
+                intento["tiempo_segundos"],
+                intento["fecha"],
+            ),
+        )[:MAX_INTENTOS_COMPETENCIA]
+        cantidad = len(mejores)
+        promedio_aciertos = sum(item["puntaje"] for item in mejores) / cantidad
+        promedio_tiempo = sum(item["tiempo_segundos"] for item in mejores) / cantidad
+        ranking.append(
+            {
+                "usuario_id": usuario["usuario_id"],
+                "nombre": usuario["nombre"],
+                "promedio_aciertos": round(promedio_aciertos, 2),
+                "promedio_tiempo": round(promedio_tiempo, 2),
+                "intentos_considerados": cantidad,
+            }
+        )
+
+    ranking.sort(
+        key=lambda item: (
+            -item["promedio_aciertos"],
+            item["promedio_tiempo"],
+            item["nombre"].casefold(),
+        )
+    )
+    return ranking[:max(0, limite)]
