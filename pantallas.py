@@ -35,7 +35,7 @@ class LoginFrame(ctk.CTkFrame):
         self.app = app
 
         crear_etiqueta(
-            self, "Cálculo Mental", color=COLOR_PRINCIPAL, tamano=30, peso="bold"
+            self, "Cálculo Mental", color=COLOR_PRINCIPAL, tamaño=30, peso="bold"
         ).pack(pady=(70, 5))
         crear_etiqueta(self, "Inicia sesión para jugar").pack(pady=(0, 30))
 
@@ -81,7 +81,7 @@ class RegistroFrame(ctk.CTkFrame):
         self.app = app
 
         crear_etiqueta(
-            self, "Crear cuenta", color=COLOR_PRINCIPAL, tamano=28, peso="bold"
+            self, "Crear cuenta", color=COLOR_PRINCIPAL, tamaño=28, peso="bold"
         ).pack(pady=(60, 25))
 
         self.entry_usuario = crear_entrada(self, "Usuario (3-20 caracteres)")
@@ -145,7 +145,7 @@ class MenuFrame(ctk.CTkFrame):
         self.app = app
 
         self.saludo = crear_etiqueta(
-            self, color=COLOR_PRINCIPAL, tamano=24, peso="bold"
+            self, color=COLOR_PRINCIPAL, tamaño=24, peso="bold"
         )
         self.saludo.pack(pady=(35, 5))
 
@@ -220,7 +220,7 @@ class JuegoFrame(ctk.CTkFrame):
         self.temporizador_after = None
 
         self.titulo = crear_etiqueta(
-            self, color=COLOR_PRINCIPAL, tamano=25, peso="bold"
+            self, color=COLOR_PRINCIPAL, tamaño=25, peso="bold"
         )
         self.titulo.pack(pady=(16, 2))
 
@@ -230,16 +230,16 @@ class JuegoFrame(ctk.CTkFrame):
         self.panel_estado = ctk.CTkFrame(self, fg_color="transparent")
         self.panel_estado.pack(fill="x", padx=18, pady=3)
         self.progreso = crear_etiqueta(
-            self.panel_estado, tamano=14, peso="bold"
+            self.panel_estado, tamaño=14, peso="bold"
         )
         self.temporizador = TemporizadorCircular(
             self.panel_estado,
             duracion=DURACION_COMPETENCIA_SEGUNDOS,
-            tamano=96,
+            tamaño=96,
         )
 
         self.problema = crear_etiqueta(
-            self, color=COLOR_PRINCIPAL, tamano=38, peso="bold"
+            self, color=COLOR_PRINCIPAL, tamaño=38, peso="bold"
         )
         self.problema.pack(pady=(12, 10))
 
@@ -260,7 +260,7 @@ class JuegoFrame(ctk.CTkFrame):
             "<Return>", lambda _evento: self.accion_principal()
         )
 
-        self.mensaje = crear_etiqueta(self, tamano=14)
+        self.mensaje = crear_etiqueta(self, tamaño=14)
         self.mensaje.pack(pady=(5, 8))
 
         self.boton_principal = crear_boton(

@@ -38,14 +38,14 @@ ESTILOS_BOTON = {
 }
 
 
-def fuente(tamano=14, peso="normal"):
-    return ctk.CTkFont(family=FUENTE, size=tamano, weight=peso)
+def fuente(tamaño=14, peso="normal"):
+    return ctk.CTkFont(family=FUENTE, size=tamaño, weight=peso)
 
 
-def crear_etiqueta(parent, texto="", *, color=None, tamano=14, peso="normal", **opciones):
+def crear_etiqueta(parent, texto="", *, color=None, tamaño=14, peso="normal", **opciones):
     if color is not None:
         opciones["text_color"] = color
-    opciones["font"] = fuente(tamano, peso)
+    opciones["font"] = fuente(tamaño, peso)
     return ctk.CTkLabel(parent, text=texto, **opciones)
 
 
@@ -94,19 +94,19 @@ def limpiar_entradas(*entradas):
 
 
 class TemporizadorCircular(ctk.CTkFrame):
-    def __init__(self, parent, duracion=60, tamano=104):
+    def __init__(self, parent, duracion, tamaño=104):
         super().__init__(
             parent,
             fg_color="transparent",
-            width=tamano,
-            height=tamano,
+            width=tamaño,
+            height=tamaño,
         )
         self.duracion = duracion
         self.restante = float(duracion)
         self.canvas = tk.Canvas(
             self,
-            width=tamano,
-            height=tamano,
+            width=tamaño,
+            height=tamaño,
             bg=COLOR_FONDO,
             highlightthickness=0,
             bd=0,
@@ -158,17 +158,17 @@ class TemporizadorCircular(ctk.CTkFrame):
                 width=grosor,
             )
 
-        tamano_texto = max(12, int(lado * 0.19))
+        tamaño_texto = max(12, int(lado * 0.19))
         self.canvas.create_text(
             centro_x,
             centro_y - 3,
             text=str(math.ceil(self.restante)),
             fill=COLOR_PRINCIPAL,
-            font=(FUENTE, tamano_texto, "bold"),
+            font=(FUENTE, tamaño_texto, "bold"),
         )
         self.canvas.create_text(
             centro_x,
-            centro_y + tamano_texto * 0.9,
+            centro_y + tamaño_texto * 0.9,
             text="seg",
             fill=COLOR_TEXTO_SUAVE,
             font=(FUENTE, max(8, int(lado * 0.085))),

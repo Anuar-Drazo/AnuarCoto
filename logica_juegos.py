@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 import random
 
-DURACION_COMPETENCIA_SEGUNDOS = 60
+DURACION_COMPETENCIA_SEGUNDOS = 100
 
 
 OPERACIONES = [
