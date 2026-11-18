@@ -10,13 +10,6 @@ COLOR_TEXTO_SUAVE = "#6b6475"
 COLOR_ERROR = "#c0392b"
 COLOR_EXITO = "#218c54"
 
-OPERACIONES = [
-    "Suma de 2 digitos",
-    "Resta de 2 digitos",
-    "Multiplicacion (2 dig. × 1)",
-    "Division exacta",
-]
-
 NUM_PREGUNTAS = 10
 FUENTE = "Century Gothic"
 
@@ -76,7 +69,6 @@ def crear_boton(
     state="normal",
     **opciones,
 ):
-
     configuracion = ESTILOS_BOTON[estilo].copy()
     configuracion.update(opciones)
     configuracion["font"] = fuente()

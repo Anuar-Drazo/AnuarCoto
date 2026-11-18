@@ -1,4 +1,5 @@
-import random
+"""Pantallas de la aplicación: acceso, registro, menú y juego."""
+
 import sqlite3
 
 import customtkinter as ctk
@@ -12,12 +13,17 @@ from componentes import (
     COLOR_PRINCIPAL,
     COLOR_TEXTO_SUAVE,
     NUM_PREGUNTAS,
-    OPERACIONES,
     crear_boton,
     crear_entrada,
     crear_etiqueta,
     fuente,
     limpiar_entradas,
+)
+from logica_juegos import (
+    OPERACIONES,
+    comprobar_respuesta,
+    generar_ejercicio,
+    obtener_instruccion,
 )
 
 
@@ -156,16 +162,13 @@ class MenuFrame(ctk.CTkFrame):
 
         self.botones_operaciones = []
         for indice, nombre in enumerate(OPERACIONES):
-            disponible = indice == 0
-            texto = nombre if disponible else f"{nombre} (próximamente)"
             boton = crear_boton(
                 self,
-                texto,
+                nombre,
                 lambda i=indice: self.elegir(i),
-                estilo="principal" if disponible else "deshabilitado",
+                estilo="principal",
                 width=300,
                 height=42,
-                state="normal" if disponible else "disabled",
             )
             boton.pack(pady=4)
             self.botones_operaciones.append(boton)
@@ -188,15 +191,11 @@ class MenuFrame(ctk.CTkFrame):
         self.aviso.configure(text="")
 
     def elegir(self, indice):
-        if indice != 0:
-            self.aviso.configure(
-                text="Esta operación estará disponible próximamente."
-            )
-            return
         self.app.iniciar_juego(OPERACIONES[indice], self.modo.get())
 
 
 class JuegoFrame(ctk.CTkFrame):
+    """Pantalla reutilizable para los ejercicios de las distintas operaciones."""
 
     def __init__(self, app):
         super().__init__(app, fg_color=COLOR_FONDO)
@@ -204,8 +203,7 @@ class JuegoFrame(ctk.CTkFrame):
         self.estado = "pregunta"
         self.numero_pregunta = 0
         self.puntaje = 0
-        self.numero_a = 0
-        self.numero_b = 0
+        self.ejercicio = None
         self.respuesta_correcta = 0
 
         self.titulo = crear_etiqueta(
@@ -225,7 +223,7 @@ class JuegoFrame(ctk.CTkFrame):
         self.problema.pack(pady=(25, 20))
 
         self.instruccion = crear_etiqueta(
-            self, "Escribe el resultado de la suma."
+            self, "Escribe el resultado de la operación."
         )
         self.instruccion.pack(pady=(0, 10))
 
@@ -279,19 +277,18 @@ class JuegoFrame(ctk.CTkFrame):
         self.puntaje = 0
         self.estado = "pregunta"
         self.mensaje.configure(text="", text_color=COLOR_TEXTO_SUAVE)
-        self.instruccion.configure(text="Escribe el resultado de la suma.")
+        self.instruccion.configure(text=obtener_instruccion(self.operacion))
         self.entry_respuesta.configure(state="normal")
         self.boton_principal.configure(text="Comprobar")
         self.mostrar_siguiente_pregunta()
 
     def mostrar_siguiente_pregunta(self):
         self.numero_pregunta += 1
-        self.numero_a = random.randint(10, 99)
-        self.numero_b = random.randint(10, 99)
-        self.respuesta_correcta = self.numero_a + self.numero_b
+        self.ejercicio = generar_ejercicio(self.operacion)
+        self.respuesta_correcta = self.ejercicio.respuesta_correcta
 
         self._actualizar_progreso()
-        self.problema.configure(text=f"{self.numero_a} + {self.numero_b} = ?")
+        self.problema.configure(text=self.ejercicio.expresion)
         self.entry_respuesta.configure(state="normal")
         self.entry_respuesta.delete(0, "end")
         self.mensaje.configure(text="", text_color=COLOR_TEXTO_SUAVE)
@@ -337,7 +334,7 @@ class JuegoFrame(ctk.CTkFrame):
         self.estado = "respondida"
         self.entry_respuesta.configure(state="disabled")
 
-        if respuesta == self.respuesta_correcta:
+        if comprobar_respuesta(respuesta, self.ejercicio):
             self.puntaje += 1
             self.mensaje.configure(
                 text="¡Correcto! Muy bien.", text_color=COLOR_EXITO
@@ -376,6 +373,7 @@ class JuegoFrame(ctk.CTkFrame):
         self.boton_principal.configure(text="Jugar otra vez")
 
     def _guardar_resultado_competencia(self):
+        """Guarda únicamente las partidas competitivas."""
         try:
             anuarcoto_db.guardar_partida(
                 self.app.usuario_actual["id"],
