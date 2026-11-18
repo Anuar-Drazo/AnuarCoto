@@ -28,6 +28,23 @@ from logica_juegos import (
     obtener_instruccion,
 )
 
+MODOS_MENU = ["Práctica", "Competencia", "Ranking"]
+FILTROS_OPERACION = ["Todas las operaciones", *OPERACIONES]
+
+
+def crear_selector_modo(parent, seleccionado, comando):
+    selector = ctk.CTkSegmentedButton(
+        parent,
+        values=MODOS_MENU,
+        selected_color=COLOR_PRINCIPAL,
+        selected_hover_color=COLOR_HOVER,
+        font=fuente(11),
+        command=comando,
+    )
+    selector.set(seleccionado)
+    selector.pack(pady=(0, 2))
+    return selector
+
 
 class LoginFrame(ctk.CTkFrame):
     def __init__(self, app):
@@ -150,17 +167,27 @@ class MenuFrame(ctk.CTkFrame):
         self.saludo.pack(pady=(35, 5))
 
         crear_etiqueta(self, "Modo").pack(pady=(12, 3))
-        self.modo = ctk.CTkSegmentedButton(
-            self,
-            values=["Práctica", "Competencia"],
-            selected_color=COLOR_PRINCIPAL,
-            selected_hover_color=COLOR_HOVER,
-            font=fuente(),
+        self.modo = crear_selector_modo(
+            self, self.app.modo_actual, self.cambiar_modo
         )
-        self.modo.set("Práctica")
-        self.modo.pack()
 
-        crear_etiqueta(self, "¿Qué quieres practicar?").pack(pady=(20, 8))
+        self.info_competencia = crear_etiqueta(
+            self,
+            "En Competencia: 3 intentos diarios entre las 4 operaciones · "
+            "100 s por intento · cada error resta 1 punto. Solo tu mejor intento "
+            "cuenta para el ranking.",
+            color=COLOR_TEXTO_SUAVE,
+            tamaño=10,
+            justify="center",
+            wraplength=365,
+        )
+        self.info_competencia.pack(pady=(1, 4))
+        self.info_competencia.pack_forget()
+
+        self.etiqueta_operaciones = crear_etiqueta(
+            self, "¿Qué quieres practicar?"
+        )
+        self.etiqueta_operaciones.pack(pady=(20, 8))
 
         self.botones_operaciones = []
         for indice, nombre in enumerate(OPERACIONES):
@@ -191,18 +218,224 @@ class MenuFrame(ctk.CTkFrame):
         nombre = self.app.usuario_actual["nombre"]
         self.saludo.configure(text=f"¡Hola, {nombre}!")
         self.aviso.configure(text="")
+        self.modo.set(self.app.modo_actual)
+        self._actualizar_info_competencia()
+
+    def cambiar_modo(self, modo):
+        if modo == "Ranking":
+            self.app.mostrar("RankingFrame")
+            return
+        self.app.modo_actual = modo
+        self._actualizar_info_competencia()
+        self.aviso.configure(text="")
+
+    def _actualizar_info_competencia(self):
+        if self.app.modo_actual == "Competencia":
+            self.info_competencia.pack(
+                before=self.etiqueta_operaciones,
+                pady=(1, 4),
+            )
+            self.etiqueta_operaciones.pack_configure(pady=(8, 5))
+        else:
+            self.info_competencia.pack_forget()
+            self.etiqueta_operaciones.pack_configure(pady=(20, 8))
 
     def elegir(self, indice):
-        modo = self.modo.get()
+        modo = self.app.modo_actual
         if modo == "Competencia" and not anuarcoto_db.puede_iniciar_competencia(
             self.app.usuario_actual["id"]
         ):
             self.aviso.configure(
-                text="Ya utilizaste tus 3 intentos de Competencia de hoy.",
+                text="Ya utilizaste tus 3 intentos de hoy.",
                 text_color=COLOR_ERROR,
             )
             return
         self.app.iniciar_juego(OPERACIONES[indice], modo)
+
+
+class RankingFrame(ctk.CTkFrame):
+    def __init__(self, app):
+        super().__init__(app, fg_color=COLOR_FONDO)
+        self.app = app
+
+        crear_etiqueta(
+            self,
+            "Ranking",
+            color=COLOR_PRINCIPAL,
+            tamaño=25,
+            peso="bold",
+        ).pack(pady=(14, 3))
+
+        self.selector_modo = crear_selector_modo(
+            self, "Ranking", self.cambiar_modo
+        )
+
+        crear_etiqueta(
+            self,
+            "Cada jugador aparece con su mejor intento. Aciertos/s = aciertos ÷ "
+            "segundos; puntaje = aciertos − errores.",
+            color=COLOR_TEXTO_SUAVE,
+            tamaño=10,
+            wraplength=380,
+            justify="center",
+        ).pack(pady=(3, 8))
+
+        self.filtro_operacion = ctk.CTkOptionMenu(
+            self,
+            values=FILTROS_OPERACION,
+            command=self.actualizar_ranking,
+            font=fuente(11),
+            dropdown_font=fuente(11),
+            fg_color=COLOR_PRINCIPAL,
+            button_color=COLOR_HOVER,
+            button_hover_color=COLOR_HOVER,
+        )
+        self.filtro_operacion.set(FILTROS_OPERACION[0])
+        self.filtro_operacion.pack(pady=(0, 7))
+
+        self.contenedor_ranking = ctk.CTkScrollableFrame(
+            self,
+            fg_color="transparent",
+            corner_radius=0,
+        )
+        self.contenedor_ranking.pack(
+            fill="both", expand=True, padx=14, pady=(0, 5)
+        )
+
+        crear_boton(
+            self,
+            "Volver al menú",
+            lambda: self._volver_a_menu(self.app.modo_actual),
+            estilo="secundario",
+            width=220,
+            height=36,
+        ).pack(pady=(3, 10))
+
+    def al_mostrar(self):
+        self.selector_modo.set("Ranking")
+        self.actualizar_ranking()
+
+    def cambiar_modo(self, modo):
+        if modo == "Ranking":
+            return
+        self._volver_a_menu(modo)
+
+    def _volver_a_menu(self, modo):
+        self.app.modo_actual = modo
+        self.app.mostrar("MenuFrame")
+
+    def actualizar_ranking(self, _seleccion=None):
+        for widget in self.contenedor_ranking.winfo_children():
+            widget.destroy()
+
+        seleccion = self.filtro_operacion.get()
+        operacion = None if seleccion == FILTROS_OPERACION[0] else seleccion
+
+        try:
+            ranking_ritmo = anuarcoto_db.obtener_ranking_competencia(
+                operacion=operacion,
+                criterio="ritmo",
+                limite=10,
+            )
+            ranking_puntaje = anuarcoto_db.obtener_ranking_competencia(
+                operacion=operacion,
+                criterio="puntaje",
+                limite=10,
+            )
+        except sqlite3.Error:
+            crear_etiqueta(
+                self.contenedor_ranking,
+                "No se pudo cargar el ranking. Inténtalo de nuevo.",
+                color=COLOR_ERROR,
+                tamaño=12,
+                wraplength=350,
+            ).pack(pady=20)
+            return
+
+        self._crear_seccion(
+            "Aciertos por segundo",
+            "Mayor rapidez de aciertos, medida sobre el mejor intento.",
+            ranking_ritmo,
+            criterio="ritmo",
+        )
+        self._crear_seccion(
+            "Puntaje general",
+            "Cada acierto suma 1 punto y cada error resta 1.",
+            ranking_puntaje,
+            criterio="puntaje",
+        )
+
+    def _crear_seccion(self, titulo, descripcion, resultados, criterio):
+        panel = ctk.CTkFrame(
+            self.contenedor_ranking,
+            fg_color="#ffffff",
+            corner_radius=12,
+        )
+        panel.pack(fill="x", pady=5)
+
+        crear_etiqueta(
+            panel,
+            titulo,
+            color=COLOR_PRINCIPAL,
+            tamaño=15,
+            peso="bold",
+        ).pack(anchor="w", padx=12, pady=(9, 0))
+        crear_etiqueta(
+            panel,
+            descripcion,
+            color=COLOR_TEXTO_SUAVE,
+            tamaño=9,
+            wraplength=350,
+            justify="left",
+        ).pack(anchor="w", padx=12, pady=(0, 5))
+
+        if not resultados:
+            crear_etiqueta(
+                panel,
+                "Aún no hay resultados completos con el sistema actual de puntuación.",
+                color=COLOR_TEXTO_SUAVE,
+                tamaño=11,
+            ).pack(anchor="w", padx=12, pady=(5, 12))
+            return
+
+        for posicion, resultado in enumerate(resultados, start=1):
+            fila = ctk.CTkFrame(panel, fg_color="#f4f1fa", corner_radius=8)
+            fila.pack(fill="x", padx=8, pady=3)
+
+            cabecera = ctk.CTkFrame(fila, fg_color="transparent")
+            cabecera.pack(fill="x", padx=8, pady=(5, 0))
+            crear_etiqueta(
+                cabecera,
+                f"{posicion}. {resultado['nombre']}",
+                tamaño=11,
+                peso="bold",
+            ).pack(side="left", anchor="w", fill="x", expand=True)
+
+            if criterio == "ritmo":
+                valor = f"{resultado['aciertos_por_segundo']:.3f} aciertos/s"
+            else:
+                valor = f"{resultado['puntaje']:+d} pts"
+            crear_etiqueta(
+                cabecera,
+                valor,
+                color=COLOR_PRINCIPAL,
+                tamaño=11,
+                peso="bold",
+            ).pack(side="right", anchor="e")
+
+            detalle = (
+                f"{resultado['operacion']} · "
+                f"{resultado['aciertos']} aciertos / {resultado['errores']} errores · "
+                f"{resultado['tiempo_segundos']:.1f} s"
+            )
+            crear_etiqueta(
+                fila,
+                detalle,
+                color=COLOR_TEXTO_SUAVE,
+                tamaño=9,
+                wraplength=350,
+                justify="left",
+            ).pack(anchor="w", padx=8, pady=(0, 5))
 
 
 class JuegoFrame(ctk.CTkFrame):
@@ -212,6 +445,7 @@ class JuegoFrame(ctk.CTkFrame):
         self.estado = "pregunta"
         self.numero_pregunta = 0
         self.puntaje = 0
+        self.errores = 0
         self.ejercicio = None
         self.respuesta_correcta = 0
         self.inicio_competencia = None
@@ -311,6 +545,7 @@ class JuegoFrame(ctk.CTkFrame):
         self._detener_temporizador()
         self.numero_pregunta = 0
         self.puntaje = 0
+        self.errores = 0
         self.estado = "pregunta"
         self.inicio_competencia = None
         self.tiempo_competencia = None
@@ -370,7 +605,7 @@ class JuegoFrame(ctk.CTkFrame):
         if self.modo == "Competencia":
             texto = (
                 f"Pregunta {self.numero_pregunta} de {NUM_PREGUNTAS}"
-                f"  |  Aciertos: {self.puntaje}"
+                f"  |  ✓ {self.puntaje}  ✗ {self.errores}"
             )
         else:
             texto = (
@@ -429,6 +664,7 @@ class JuegoFrame(ctk.CTkFrame):
                 text="¡Correcto! Muy bien.", text_color=COLOR_EXITO
             )
         else:
+            self.errores += 1
             self.mensaje.configure(
                 text=f"No es correcto. La respuesta era {self.respuesta_correcta}.",
                 text_color=COLOR_ERROR,
@@ -490,12 +726,17 @@ class JuegoFrame(ctk.CTkFrame):
         self.problema.configure(text=f"{self.puntaje} / {NUM_PREGUNTAS}")
         porcentaje = round((self.puntaje / NUM_PREGUNTAS) * 100)
         if self.modo == "Competencia":
+            puntaje_neto = self.puntaje - self.errores
             if tiempo_agotado:
-                texto = f"Tiempo agotado. Aciertos: {self.puntaje} de {NUM_PREGUNTAS}."
+                texto = (
+                    f"Tiempo agotado. Aciertos: {self.puntaje} · "
+                    f"Errores: {self.errores} · Puntaje: {puntaje_neto:+d}."
+                )
             else:
                 texto = (
                     f"Completaste los ejercicios en {self.tiempo_competencia:.2f} s. "
-                    f"Aciertos: {self.puntaje} de {NUM_PREGUNTAS}."
+                    f"Aciertos: {self.puntaje} · Errores: {self.errores} · "
+                    f"Puntaje: {puntaje_neto:+d}."
                 )
             self.instruccion.configure(text=texto)
             self._guardar_resultado_competencia()
@@ -509,7 +750,18 @@ class JuegoFrame(ctk.CTkFrame):
             )
 
         self.entry_respuesta.configure(state="disabled")
-        self.boton_principal.configure(text="Jugar otra vez")
+        if self.modo == "Competencia" and not anuarcoto_db.puede_iniciar_competencia(
+            self.app.usuario_actual["id"]
+        ):
+            self.boton_principal.configure(
+                text="Límite diario alcanzado",
+                state="disabled",
+            )
+        else:
+            self.boton_principal.configure(
+                text="Jugar otra vez",
+                state="normal",
+            )
 
     def _guardar_resultado_competencia(self):
         try:
@@ -518,6 +770,7 @@ class JuegoFrame(ctk.CTkFrame):
             anuarcoto_db.finalizar_intento_competencia(
                 self.intento_competencia_id,
                 self.puntaje,
+                self.errores,
                 self.tiempo_competencia,
             )
             self.intento_competencia_id = None

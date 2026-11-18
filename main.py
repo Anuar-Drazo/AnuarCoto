@@ -2,7 +2,13 @@ import customtkinter as ctk
 
 import anuarcoto_db
 from componentes import COLOR_FONDO
-from pantallas import JuegoFrame, LoginFrame, MenuFrame, RegistroFrame
+from pantallas import (
+    JuegoFrame,
+    LoginFrame,
+    MenuFrame,
+    RankingFrame,
+    RegistroFrame,
+)
 
 
 class App(ctk.CTk):
@@ -15,12 +21,19 @@ class App(ctk.CTk):
 
         self.usuario_actual = None
         self.configuracion_partida = None
+        self.modo_actual = "Práctica"
 
         self.grid_rowconfigure(0, weight=1)
         self.grid_columnconfigure(0, weight=1)
 
         self.pantallas = {}
-        for clase in (LoginFrame, RegistroFrame, MenuFrame, JuegoFrame):
+        for clase in (
+            LoginFrame,
+            RegistroFrame,
+            MenuFrame,
+            JuegoFrame,
+            RankingFrame,
+        ):
             pantalla = clase(self)
             self.pantallas[clase.__name__] = pantalla
             pantalla.grid(row=0, column=0, sticky="nsew")
