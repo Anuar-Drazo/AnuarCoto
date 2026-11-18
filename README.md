@@ -23,4 +23,4 @@ La primera vez se creará automáticamente el archivo `anuarcoto.db`, donde se g
 
 ![Captura de Cálculo Mental](captura_juego.png)
 
-> Guarda una captura real de la aplicación en funcionamiento con el nombre `captura_juego.png` y colócala junto a este README para que se muestre aquí.
+>
