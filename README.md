@@ -1,6 +1,6 @@
    # Mindrazo
 
-Mindrazo es una plataforma de Calculo Mental inspirada en Alberto Coto, es una aplicación de escritorio para practicar operaciones matemáticas de manera mental para niños de primaria. Fue creada con el proposito de pasar una materia y de ayudar a los niños a desarrollar su cerebro mediante divertidos juegos de ejercicios mentales que estimulan su concentracion. Incluye suma, resta, multiplicación y divisiónd ademas de un modo Competencia donde podras medir tus habilidades con un limite de tiempo e intentos y una sección de Ranking donde podras ver tus resultados y competir con otros para ser el top 1.
+Mindrazo es una plataforma de Calculo Mental, una aplicación de escritorio para practicar operaciones matemáticas de manera mental para niños de primaria. Fue creada con el proposito de pasar una materia y de ayudar a los niños a desarrollar su cerebro mediante divertidos juegos de ejercicios mentales que estimulan su concentracion. Incluye suma, resta, multiplicación y divisiónd ademas de un modo Competencia donde podras medir tus habilidades con un limite de tiempo e intentos y una sección de Ranking donde podras ver tus resultados y competir con otros para ser el top 1.
 
 ## Cómo ejecutar el programa
 
